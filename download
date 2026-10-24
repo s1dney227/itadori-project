@@ -1,0 +1,335 @@
+/**
+ * Mini App: itadori strz
+ * API_BASE — адрес игрового бота (user-bot.js), задаётся в vercel.json
+ */
+const API_BASE = window.API_BASE || 'https://your-game-bot.onrender.com';
+
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+if (tg.setHeaderColor) tg.setHeaderColor('#171922');
+if (tg.setBackgroundColor) tg.setBackgroundColor('#0e0f13');
+
+/* ---------- Состояние ---------- */
+let state = {
+  user: null,
+  spinning: false
+};
+const CASES = [
+  { bet: 10, emoji: '🎁' },
+  { bet: 25, emoji: '📦' },
+  { bet: 50, emoji: '🧰' },
+  { bet: 100, emoji: '💼' },
+  { bet: 250, emoji: '🏆' }
+];
+const MAX_MULT = 15;
+
+const $ = (s) => document.getElementById(s);
+
+/* ---------- Сетевые вызовы ---------- */
+function userData() {
+  const u = tg.initDataUnsafe?.user || {};
+  return {
+    id: u.id || 777000000, // fallback для теста в браузере
+    username: u.username || '',
+    firstName: u.first_name || 'Игрок'
+  };
+}
+
+async function api(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...userData(), ...body })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Ошибка сервера');
+  return data;
+}
+
+/* ---------- Загрузка профиля ---------- */
+async function loadUser() {
+  try {
+    const data = await api('/api/user');
+    state.user = data.user;
+    renderBalance();
+    renderTicker(data.feed || []);
+    renderHistory();
+  } catch (e) {
+    console.error(e);
+    $('result').textContent = '⚠️ Сервер недоступен';
+  }
+}
+
+function renderBalance() {
+  if (!state.user) return;
+  $('balanceBtn').textContent = `${state.user.balance}★`;
+  $('profileBalance').textContent = `${state.user.balance}★`;
+  const max = Math.max(100, Math.floor(state.user.balance / 100) * 100);
+  const range = $('wdRange');
+  range.max = max;
+  if (Number(range.value) > max) {
+    range.value = max;
+    $('wdValue').textContent = `${max}★`;
+  }
+}
+
+function renderTicker(feed) {
+  const track = $('tickerTrack');
+  track.innerHTML = '';
+  const items = feed.length ? feed : ['Добро пожаловать в itadori strz 🎰'];
+  items.forEach((text) => {
+    const span = document.createElement('span');
+    span.className = 'ticker-item';
+    span.innerHTML = text;
+    track.appendChild(span);
+  });
+}
+
+function renderHistory() {
+  const h = $('history');
+  const spins = state.user?.spins || [];
+  if (!spins.length) {
+    h.textContent = 'Пока пусто';
+    return;
+  }
+  h.innerHTML = spins
+    .slice(0, 10)
+    .map((s) => {
+      const cls = s.multiplier === 15 ? 'h-jack' : s.multiplier >= 1 ? 'h-win' : 'h-lose';
+      return `<div class="${cls}">• Ставка ${s.bet}★ → x${s.multiplier} = <b>${s.win}★</b></div>`;
+    })
+    .join('');
+}
+
+/* ---------- Кейсы ---------- */
+function renderCases() {
+  const wrap = $('cases');
+  wrap.innerHTML = '';
+  CASES.forEach((c) => {
+    const el = document.createElement('button');
+    el.className = 'case';
+    el.innerHTML = `
+      <div class="emoji">${c.emoji}</div>
+      <div class="bet">${c.bet}★</div>
+      <div class="max">Макс x${MAX_MULT}</div>`;
+    el.addEventListener('click', () => spin(c.bet, el));
+    wrap.appendChild(el);
+  });
+}
+
+/* ---------- Рулетка (лента CS:GO) ---------- */
+function buildStrip(targetIndex) {
+  const strip = $('strip');
+  strip.style.transition = 'none';
+  strip.style.transform = 'translateX(0)';
+  strip.innerHTML = '';
+
+  const CELL_W = 84; // 76px + 8px margin
+  const TOTAL = 60; // всего ячеек
+  const STOP = TOTAL - 6; // индекс ячейки, которая встанет под указателем
+
+  const CLS = {
+    0.1: 'c-lose',
+    0.5: 'c-half',
+    1: 'c-even',
+    15: 'c-jack'
+  };
+  const LABEL = { 0.1: '0.1x', 0.5: '0.5x', 1: '1x', 15: '15x 🎉' };
+
+  const pool = [0.1, 0.1, 0.5, 0.5, 0.5, 1, 1, 15];
+  for (let i = 0; i < TOTAL; i++) {
+    const m = i === STOP ? targetIndex : pool[Math.floor(Math.random() * pool.length)];
+    const cell = document.createElement('div');
+    cell.className = `cell ${CLS[m]}`;
+    cell.dataset.mult = m;
+    cell.innerHTML = `${LABEL[m]}`;
+    if (m === 15) cell.innerHTML = `${LABEL[m]}<small>джекпот</small>`;
+    strip.appendChild(cell);
+  }
+  return { STOP, CELL_W };
+}
+
+function spinStrip(targetMult) {
+  return new Promise((resolve) => {
+    const { STOP, CELL_W } = buildStrip(targetMult);
+    const strip = $('strip');
+    // ждём применённый reset
+    requestAnimationFrame(() => {
+      const wrapWidth = document.querySelector('.strip-wrap').clientWidth;
+      const offset = STOP * CELL_W + CELL_W / 2 - wrapWidth / 2 + (Math.random() * 20 - 10);
+      strip.style.transition = 'transform 4.2s cubic-bezier(.12,.72,.18,1)';
+      strip.style.transform = `translateX(-${offset}px)`;
+      setTimeout(resolve, 4350);
+    });
+  });
+}
+
+/* ---------- Спин ---------- */
+async function spin(bet, btn) {
+  if (state.spinning) {
+    tg.HapticFeedback?.notificationOccurred('warning');
+    return;
+  }
+  if (!state.user || state.user.balance < bet) {
+    showResult(`Недостаточно средств. Нужно ${bet}★`, 'lose');
+    openProfile();
+    return;
+  }
+
+  state.spinning = true;
+  document.querySelectorAll('.case').forEach((b) => (b.disabled = true));
+  btn && btn.classList.add('active');
+  showResult('Крутим... 🎰', '');
+
+  try {
+    const data = await api('/api/spin', { bet });
+    await spinStrip(data.multiplier);
+
+    state.user.balance = data.balance;
+    renderBalance();
+    renderTicker(data.feed || []);
+
+    if (data.multiplier === 15) {
+      showResult(`🎉 ДЖЕКПОТ x15! +${data.win}★`, 'jackpot');
+      tg.HapticFeedback?.notificationOccurred('success');
+      tg.showAlert?.(`🎉 ДЖЕКПОТ! Ты выиграл ${data.win}★`);
+    } else if (data.multiplier >= 1) {
+      showResult(`✅ x${data.multiplier} — выиграл ${data.win}★`, 'win');
+      tg.HapticFeedback?.notificationOccurred('success');
+    } else {
+      showResult(`💸 x${data.multiplier} — получено ${data.win}★`, 'lose');
+      tg.HapticFeedback?.notificationOccurred('error');
+    }
+    state.user.spins.unshift({ bet, multiplier: data.multiplier, win: data.win, date: Date.now() });
+    renderHistory();
+  } catch (e) {
+    showResult(e.message === 'insufficient' ? 'Недостаточно средств' : '⚠️ ' + e.message, 'lose');
+  } finally {
+    state.spinning = false;
+    document.querySelectorAll('.case').forEach((b) => (b.disabled = false));
+  }
+}
+
+function showResult(text, cls) {
+  const el = $('result');
+  el.textContent = text;
+  el.className = `result ${cls}`;
+}
+
+/* ---------- Профиль ---------- */
+function openProfile() {
+  renderBalance();
+  renderHistory();
+  $('profileModal').classList.add('open');
+}
+function closeProfile() {
+  $('profileModal').classList.remove('open');
+}
+
+$('balanceBtn').addEventListener('click', () => {
+  tg.HapticFeedback?.selectionChanged();
+  openProfile();
+});
+$('closeProfile').addEventListener('click', closeProfile);
+$('profileModal').addEventListener('click', (e) => {
+  if (e.target === $('profileModal')) closeProfile();
+});
+
+/* Пополнение */
+$('btnDeposit').addEventListener('click', () => {
+  $('depositBlock').classList.toggle('hidden');
+  $('withdrawBlock').classList.add('hidden');
+  $('depositStatus').textContent = '';
+});
+
+document.querySelectorAll('.btn.dep').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const amount = Number(btn.dataset.amount);
+    const status = $('depositStatus');
+    status.textContent = 'Создаю счёт...';
+    status.className = 'status';
+    try {
+      const u = userData();
+      const res = await fetch(`${API_BASE}/api/invoice`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: u.id, amount })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка');
+      // Открываем invoice через Telegram (Stars-платёж)
+      tg.openInvoice(data.invoiceLink, (st) => {
+        if (st === 'paid') {
+          status.textContent = `✅ Оплачено! +${amount}★`;
+          status.className = 'status ok';
+          loadUser();
+        } else if (st === 'failed') {
+          status.textContent = '❌ Платёж не прошёл';
+          status.className = 'status err';
+        }
+      });
+    } catch (e) {
+      status.textContent = '⚠️ ' + e.message;
+      status.className = 'status err';
+    }
+  });
+});
+
+/* Вывод */
+$('btnWithdrawToggle').addEventListener('click', () => {
+  $('withdrawBlock').classList.toggle('hidden');
+  $('depositBlock').classList.add('hidden');
+});
+
+const wdRange = $('wdRange');
+const wdInput = $('wdInput');
+wdRange.addEventListener('input', () => {
+  wdInput.value = wdRange.value;
+  $('wdValue').textContent = `${wdRange.value}★`;
+});
+wdInput.addEventListener('input', () => {
+  const v = Math.ceil(Number(wdInput.value || 0) / 100) * 100; // округление вверх до 100
+  if (v >= 100) {
+    wdRange.value = v;
+    $('wdValue').textContent = `${v}★`;
+  }
+});
+
+$('btnWithdraw').addEventListener('click', async () => {
+  const status = $('withdrawStatus');
+  let amount = Number(wdInput.value || wdRange.value);
+  amount = Math.ceil(amount / 100) * 100; // авто-округление вверх, кратно 100★
+
+  if (amount < 100) {
+    status.textContent = 'Минимум 100★';
+    status.className = 'status err';
+    return;
+  }
+  if (state.user && amount > state.user.balance) {
+    status.textContent = 'Недостаточно средств на балансе';
+    status.className = 'status err';
+    return;
+  }
+
+  status.textContent = 'Отправляю заявку...';
+  status.className = 'status';
+  try {
+    const data = await api('/api/withdraw', { amount });
+    state.user.balance = data.balance;
+    renderBalance();
+    status.textContent = data.notified
+      ? `✅ Заявка #${data.request.id} отправлена! Жди выплаты.`
+      : `✅ Заявка #${data.request.id} создана. Обработка может занять время.`;
+    status.className = 'status ok';
+    tg.HapticFeedback?.notificationOccurred('success');
+  } catch (e) {
+    status.textContent = e.message === 'insufficient' ? 'Недостаточно средств' : '⚠️ ' + e.message;
+    status.className = 'status err';
+  }
+});
+
+/* ---------- Инициализация ---------- */
+renderCases();
+loadUser();
+setInterval(loadUser, 15000); // лёгкая синхронизация баланса и тикера

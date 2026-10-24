@@ -1,0 +1,256 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0e0f13;
+  --card: #171922;
+  --card2: #1e2130;
+  --accent: #8b5cf6;
+  --green: #22c55e;
+  --blue: #3b82f6;
+  --red: #ef4444;
+  --gold: #fbbf24;
+  --text: #e5e7eb;
+  --muted: #8b90a0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  padding-bottom: 40px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== Шапка ===== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--card);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 12px rgba(0,0,0,.5);
+}
+.logo {
+  font-weight: 800;
+  font-size: 18px;
+  background: linear-gradient(90deg, var(--accent), #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.balance {
+  background: var(--card2);
+  color: var(--gold);
+  border: 1px solid rgba(251,191,36,.3);
+  font-weight: 700;
+  font-size: 16px;
+  padding: 8px 16px;
+  border-radius: 22px;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.balance:active { transform: scale(.95); }
+
+/* ===== Тикер ===== */
+.ticker {
+  overflow: hidden;
+  background: var(--card);
+  border-top: 1px solid #262a3a;
+  border-bottom: 1px solid #262a3a;
+  height: 34px;
+  display: flex;
+  align-items: center;
+}
+.ticker-track {
+  display: flex;
+  gap: 40px;
+  white-space: nowrap;
+  animation: scroll 25s linear infinite;
+  padding-left: 100%;
+}
+@keyframes scroll {
+  to { transform: translateX(-100%); }
+}
+.ticker-item { font-size: 13px; color: var(--muted); }
+.ticker-item b { color: var(--gold); }
+
+/* ===== Рулетка ===== */
+.roulette {
+  position: relative;
+  margin: 18px 12px 8px;
+}
+.pointer {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  transform: translateX(-50%);
+  width: 2px;
+  height: calc(100% + 12px);
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  z-index: 2;
+}
+.strip-wrap {
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid #262a3a;
+  background: var(--card);
+  height: 78px;
+}
+.strip {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  position: relative;
+}
+.cell {
+  flex: 0 0 76px;
+  height: 62px;
+  margin: 0 4px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: #fff;
+}
+.cell small { font-size: 10px; font-weight: 500; opacity: .8; }
+.c-lose { background: #3a3f52; }
+.c-half { background: #4c5566; }
+.c-even { background: linear-gradient(135deg, #22c55e, #15803d); }
+.c-jack { background: linear-gradient(135deg, #fbbf24, #f97316); box-shadow: 0 0 16px rgba(251,191,36,.6); }
+
+.result {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 10px 16px;
+  min-height: 22px;
+}
+.result.win { color: var(--green); }
+.result.jackpot { color: var(--gold); text-shadow: 0 0 14px rgba(251,191,36,.6); }
+.result.lose { color: var(--red); }
+
+/* ===== Кейсы ===== */
+.cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  padding: 8px 12px;
+}
+.case {
+  background: linear-gradient(160deg, var(--card2), var(--card));
+  border: 1px solid #262a3a;
+  border-radius: 16px;
+  padding: 16px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform .15s, border-color .15s;
+}
+.case:active { transform: scale(.95); }
+.case .emoji { font-size: 34px; }
+.case .bet { font-weight: 800; font-size: 17px; margin-top: 6px; color: var(--gold); }
+.case .max { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.case:disabled { opacity: .45; }
+
+/* ===== Модалка профиля ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.72);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+}
+.modal.open { display: flex; }
+.modal-card {
+  background: var(--card);
+  width: 100%;
+  max-width: 480px;
+  border-radius: 22px 22px 0 0;
+  padding: 20px 18px 30px;
+  max-height: 88vh;
+  overflow-y: auto;
+  animation: up .25s ease;
+}
+@keyframes up { from { transform: translateY(40px); opacity: 0; } }
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.modal-head h3 { font-size: 18px; }
+.close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+}
+.profile-balance { font-size: 16px; margin-bottom: 14px; color: var(--muted); }
+.profile-balance b { color: var(--gold); font-size: 20px; }
+
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn {
+  border: none;
+  border-radius: 12px;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: transform .12s, opacity .12s;
+}
+.btn:active { transform: scale(.96); }
+.btn:disabled { opacity: .5; }
+.btn-green { background: var(--green); }
+.btn-blue { background: var(--blue); }
+.btn.full { width: 100%; margin-top: 10px; }
+
+.withdraw-block, .deposit-block {
+  margin-top: 14px;
+  background: var(--card2);
+  border-radius: 14px;
+  padding: 14px;
+}
+.hidden { display: none; }
+.wd-label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 8px; }
+#wdRange { width: 100%; accent-color: var(--blue); }
+.wd-value {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--gold);
+  margin: 8px 0;
+}
+#wdInput {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid #262a3a;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 15px;
+}
+.wd-hint { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
+.dep-title { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.dep-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.btn.dep { background: var(--card); border: 1px solid #262a3a; color: var(--gold); }
+
+.status { font-size: 13px; margin-top: 10px; min-height: 18px; }
+.status.ok { color: var(--green); }
+.status.err { color: var(--red); }
+
+.sub-title { margin: 18px 0 8px; font-size: 14px; color: var(--muted); }
+.history { font-size: 13px; line-height: 1.9; color: var(--muted); }
+.history .h-win { color: var(--green); }
+.history .h-jack { color: var(--gold); }
+.history .h-lose { color: var(--red); }

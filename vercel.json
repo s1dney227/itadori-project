@@ -1,0 +1,9 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://REPLACE-WITH-GAME-BOT.onrender.com/api/:path*"
+    }
+  ]
+}
